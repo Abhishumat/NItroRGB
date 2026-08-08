@@ -8,7 +8,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo "========================================="
-echo " Installing NitroRGB & Complete Animation Setup "
+echo " Installing facer-gui  "
 echo "========================================="
 
 # 1. Verify facer-rgb CLI tool presence
@@ -18,9 +18,9 @@ if ! command -v facer-rgb &> /dev/null; then
 fi
 
 # 2. Install main Python executable
-echo "[1/7] Copying application binary to /usr/local/bin/nitrorgb..."
-cp main.py /usr/local/bin/nitrorgb
-chmod +x /usr/local/bin/nitrorgb
+echo "[1/7] Copying application binary to /usr/local/bin/facer-gui..."
+cp main.py /usr/local/bin/facer-gui
+chmod +x /usr/local/bin/facer-gui
 
 # 3. Configure udev rules for non-root hardware access
 echo "[2/7] Setting up udev rules for /dev/acer-gkbbl-0..."
@@ -51,37 +51,37 @@ DEFAULT_CONFIG='{
 }'
 
 mkdir -p /etc/skel/.config
-echo "$DEFAULT_CONFIG" > /etc/skel/.config/nitro_rgb_config.json
+echo "$DEFAULT_CONFIG" > /etc/skel/.config/acer_rgb_hub_config.json
 
 if [ -n "$SUDO_USER" ]; then
     USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     USER_CONFIG_DIR="$USER_HOME/.config"
     mkdir -p "$USER_CONFIG_DIR"
-    if [ ! -f "$USER_CONFIG_DIR/nitro_rgb_config.json" ]; then
-        echo "$DEFAULT_CONFIG" > "$USER_CONFIG_DIR/nitro_rgb_config.json"
-        chown -R "$SUDO_USER:" "$USER_CONFIG_DIR/nitro_rgb_config.json"
+    if [ ! -f "$USER_CONFIG_DIR/acer_rgb_hub_config.json" ]; then
+        echo "$DEFAULT_CONFIG" > "$USER_CONFIG_DIR/acer_rgb_hub_config.json"
+        chown -R "$SUDO_USER:" "$USER_CONFIG_DIR/acer_rgb_hub_config.json"
     fi
 fi
 
 # 6. Install desktop app launcher and XDG autostart entry
 echo "[5/7] Installing desktop integration and session autostart..."
-cat <<EOF > /usr/share/applications/nitrorgb.desktop
+cat <<EOF > /usr/share/applications/facer-gui.desktop
 [Desktop Entry]
 Type=Application
-Name=Nitro RGB Control
-Comment=Acer Nitro Keyboard RGB Configuration
-Exec=/usr/local/bin/nitrorgb
+Name=Facer GUI
+Comment=Facer RGB Configuration
+Exec=/usr/local/bin/facer-gui
 Icon=input-gaming
 Terminal=false
 Categories=System;Settings;
 EOF
 
-cat <<EOF > /etc/xdg/autostart/nitrorgb-autostart.desktop
+cat <<EOF > /etc/xdg/autostart/facer-gui-autostart.desktop
 [Desktop Entry]
 Type=Application
-Name=NitroRGB Autostart
-Comment=Triggers Nitro RGB startup wipe animation on session login
-Exec=/usr/local/bin/nitrorgb --silent
+Name=Facer GUI Autostart
+Comment=Triggers Facer GUI startup on session login
+Exec=/usr/local/bin/facer-gui --silent
 Terminal=false
 NoDisplay=true
 X-GNOME-Autostart-enabled=true
@@ -89,8 +89,8 @@ X-KDE-autostart-after=panel
 EOF
 
 # 7. Setup the Systemd Hardware Shutdown Hook
-echo "[6/7] Creating hardware shutdown script (nitro-red-shutdown.sh)..."
-cat << 'EOF' > /usr/local/bin/nitro-red-shutdown.sh
+echo "[6/7] Creating hardware shutdown script (facer-red-shutdown.sh)..."
+cat << 'EOF' > /usr/local/bin/facer-red-shutdown.sh
 #!/bin/bash
 
 # Dynamically locate the executable
@@ -100,7 +100,7 @@ if [ ! -x "$FACER" ]; then
 fi
 
 # Search for the user's GUI config to check if the animation toggle is enabled
-CONFIG_FILE=$(ls /home/*/.config/nitro_rgb_config.json 2>/dev/null | head -n 1)
+CONFIG_FILE=$(ls /home/*/.config/acer_rgb_hub_config.json 2>/dev/null | head -n 1)
 
 if [ -f "$CONFIG_FILE" ]; then
     ANIM_ENABLED=$(grep -o '"startup_animation": [a-z]*' "$CONFIG_FILE" | cut -d' ' -f2)
@@ -116,12 +116,12 @@ for z in {1..4}; do
 done
 EOF
 
-chmod +x /usr/local/bin/nitro-red-shutdown.sh
+chmod +x /usr/local/bin/facer-red-shutdown.sh
 
 echo "[7/7] Registering systemd shutdown service..."
-cat <<EOF > /etc/systemd/system/nitro-rgb-shutdown.service
+cat <<EOF > /etc/systemd/system/facer-rgb-shutdown.service
 [Unit]
-Description=Nitro RGB Shutdown Hardware State Lock
+Description=Facer RGB Shutdown Hardware State Lock
 After=multi-user.target
 
 [Service]
@@ -130,7 +130,7 @@ RemainAfterExit=yes
 # Dummy start command so the service is considered "active"
 ExecStart=/bin/true
 # The actual magic happens on stop (shutdown) while hardware interfaces are still up
-ExecStop=/usr/local/bin/nitro-red-shutdown.sh
+ExecStop=/usr/local/bin/facer-red-shutdown.sh
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 [Install]
@@ -138,8 +138,8 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable nitro-rgb-shutdown.service
-systemctl start nitro-rgb-shutdown.service
+systemctl enable facer-rgb-shutdown.service
+systemctl start facer-rgb-shutdown.service
 
 echo "========================================="
 echo " Installation Complete!"

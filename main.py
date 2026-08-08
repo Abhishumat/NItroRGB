@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 
-CONFIG_FILE = os.path.expanduser("~/.config/nitro_rgb_config.json")
+CONFIG_FILE = os.path.expanduser("~/.config/acer_rgb_hub_config.json")
 
 # --- Stylesheet ---
 THEME = {
@@ -294,7 +294,7 @@ class ZoneWidget(QFrame):
         self.style().unpolish(self)
         self.style().polish(self)
 
-class ModernNitroGUI(QMainWindow):
+class ModernAcerRGBHub(QMainWindow):
     def __init__(self, build_ui=True):
         super().__init__()
         self.settings = self.load_settings()
@@ -400,7 +400,7 @@ class ModernNitroGUI(QMainWindow):
 
 #---------------------------------
     def init_ui(self):
-        self.setWindowTitle("Nitro RGB Control Center")
+        self.setWindowTitle("Acer-RGB-Hub")
         self.setGeometry(150, 150, 1200, 640) 
         self.setStyleSheet(STYLESHEET)
 
@@ -416,7 +416,7 @@ class ModernNitroGUI(QMainWindow):
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(0, 24, 0, 24)
 
-        title = QLabel("<b>NITRO</b> LINUX")
+        title = QLabel("<b>Acer-RGB-Hub</b>")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("font-size: 15pt; letter-spacing: 2px; margin-bottom: 24px;")
         sidebar_layout.addWidget(title)
@@ -993,13 +993,13 @@ class ModernNitroGUI(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    app.setApplicationName("NitroRGB")
-    app.setDesktopFileName("NitroRGB")
+    app.setApplicationName("Acer-RGB-Hub")
+    app.setDesktopFileName("Acer-RGB-Hub")
 
     is_silent = "--silent" in sys.argv
 
     if is_silent:
-        controller = ModernNitroGUI(build_ui=False)
+        controller = ModernAcerRGBHub(build_ui=False)
         controller.run_startup_animation()
         sys.exit(0)
     else:
@@ -1007,6 +1007,6 @@ if __name__ == '__main__':
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
         
-        window = ModernNitroGUI(build_ui=True)
+        window = ModernAcerRGBHub(build_ui=True)
         window.show()
         sys.exit(app.exec_())

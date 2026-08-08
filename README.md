@@ -1,6 +1,6 @@
 # GUI for Acer RGB keyboard linux Module
 
-NitroRGB is a complete graphical interface and system automation suite for Acer Nitro keyboards on Linux. It provides a modern PyQt5 interface for customizing zones and animations, while utilizing shell scripts to integrate deeply with the system via udev, systemd, and XDG autostart.
+Acer-RGB-Hub is a complete graphical interface and system automation suite for Acer Nitro/ Predator/ Helios keyboards on Linux. It provides a modern PyQt5 interface for customizing zones and animations, while utilizing shell scripts to integrate deeply with the system via udev, systemd, and XDG autostart.
 
 ---
 ![Showcase of the GUI](Ui_showcase.png)
@@ -19,14 +19,14 @@ NitroRGB is a complete graphical interface and system automation suite for Acer 
 
 ## Dependencies
 
-Before installing NitroRGB, ensure you have the required backend tools and Python libraries installed.
+Before installing Acer-RGB-Hub, ensure you have the required backend tools and Python libraries installed.
 
 **1. Hardware Backend:**
 
 * [`facer-rgb`](https://www.google.com/search?q=%23) (Required for underlying hardware communication)
 
 **2. Python Libraries:**
-This application requires Python 3, PyQt5 (for the GUI), and Pillow/ColorThief (for the wallpaper sync feature). Because NitroRGB relies on system-level hooks, it is highly recommended to install the core libraries via your system package manager, and use `pip` for `colorthief`:
+This application requires Python 3, PyQt5 (for the GUI), and Pillow/ColorThief (for the wallpaper sync feature). Because Acer-RGB-Hub relies on system-level hooks, it is highly recommended to install the core libraries via your system package manager, and use `pip` for `colorthief`:
 
 * **Arch Linux :**
 
@@ -63,8 +63,8 @@ The provided `install.sh` script handles everything from copying binaries to reg
 
 1. Clone the repository and navigate into the directory:
 ```bash
-git clone https://github.com/yourusername/NitroRGB.git
-cd NitroRGB
+git clone https://github.com/yourusername/facer_gui.git
+cd facer_gui
 
 ```
 
@@ -81,11 +81,11 @@ sudo ./install.sh
 **What the installer does:**
 
 * Verifies the presence of the `facer-rgb` CLI tool.
-* Copies the main application to `/usr/local/bin/nitrorgb`.
+* Copies the main application to `/usr/local/bin/facer-gui`.
 * Configures udev rules and ensures the `acer_wmi` kernel module auto-loads at boot.
 * Seeds the default JSON configuration to `~/.config/` and `/etc/skel`.
 * Registers the desktop application launcher and XDG session autostart entry.
-* Installs `nitro-red-shutdown.sh` and enables the `nitro-rgb-shutdown.service` via systemd.
+* Installs `facer-red-shutdown.sh` and enables the `facer-rgb-shutdown.service` via systemd.
 
 ---
 
@@ -96,18 +96,18 @@ sudo ./install.sh
 Launch the Control Center from your application menu, or run it directly from your terminal:
 
 ```bash
-nitrorgb
+facer-gui
 
 ```
 
-*Note: Your custom palettes, presets, and preferences are saved locally to `~/.config/nitro_rgb_config.json`.*
+*Note: Your custom palettes, presets, and preferences are saved locally to `~/.config/acer_rgb_hub_config.json`.*
 
 ### Silent Execution
 
 To trigger the background wipe animation manually without opening the graphical interface :
 
 ```bash
-nitrorgb --silent
+facer-gui --silent
 
 ```
 

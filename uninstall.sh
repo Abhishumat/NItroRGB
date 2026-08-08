@@ -7,15 +7,15 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo "========================================="
-echo " Uninstalling NitroRGB GUI & Integration "
+echo " Uninstalling facer GUI "
 echo "========================================="
 
 # 1. Stop and disable Systemd Shutdown Service
-if systemctl is-active --quiet nitro-rgb-shutdown.service 2>/dev/null || systemctl is-enabled --quiet nitro-rgb-shutdown.service 2>/dev/null; then
-    echo "[1/5] Disabling and stopping nitro-rgb-shutdown.service..."
-    systemctl stop nitro-rgb-shutdown.service 2>/dev/null || true
-    systemctl disable nitro-rgb-shutdown.service 2>/dev/null || true
-    rm -f /etc/systemd/system/nitro-rgb-shutdown.service
+if systemctl is-active --quiet facer-rgb-shutdown.service 2>/dev/null || systemctl is-enabled --quiet facer-rgb-shutdown.service 2>/dev/null; then
+    echo "[1/5] Disabling and stopping facer-rgb-shutdown.service..."
+    systemctl stop facer-rgb-shutdown.service 2>/dev/null || true
+    systemctl disable facer-rgb-shutdown.service 2>/dev/null || true
+    rm -f /etc/systemd/system/facer-rgb-shutdown.service
     systemctl daemon-reload
 else
     echo "[1/5] Systemd shutdown service not active, skipping..."
@@ -23,13 +23,13 @@ fi
 
 # 2. Remove Executables & Scripts
 echo "[2/5] Removing installed binaries..."
-rm -f /usr/local/bin/nitrorgb
-rm -f /usr/local/bin/nitro-red-shutdown.sh
+rm -f /usr/local/bin/facer-gui
+rm -f /usr/local/bin/facer-red-shutdown.sh
 
 # 3. Remove Desktop Launchers & Autostart
 echo "[3/5] Removing application launchers..."
-rm -f /usr/share/applications/nitrorgb.desktop
-rm -f /etc/xdg/autostart/nitrorgb-autostart.desktop
+rm -f /usr/share/applications/facer-gui.desktop
+rm -f /etc/xdg/autostart/facer-gui-autostart.desktop
 
 # 4. Remove Udev Rules & Kernel Auto-load Config
 echo "[4/5] Removing udev rules and module autoload configs..."
@@ -39,7 +39,7 @@ udevadm control --reload-rules && udevadm trigger
 
 # 5. Clean up skeleton default config (optional: leaves user ~/.config untouched)
 echo "[5/5] Removing skeleton configuration..."
-rm -f /etc/skel/.config/nitro_rgb_config.json
+rm -f /etc/skel/.config/acer_rgb_hub_config.json
 
 echo "========================================="
 echo " Uninstall Complete!"
