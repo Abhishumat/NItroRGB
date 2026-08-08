@@ -1,93 +1,129 @@
-# NitroRGB Control Center
+# NitroRGB Control Center & Automation Suite
 
-A modern, full-featured GUI frontend for managing Acer Nitro keyboard backlighting on Linux.
-
-Built with PyQt, NitroRGB serves as a lightweight alternative to native Windows control software. It interfaces directly with the `facer-rgb` kernel module to provide real-time control over static lighting zones, hardware animations, global brightness, and custom preset management.
-
-## Features
-
-* **Advanced Zone Control:** Individually toggle power and assign custom hex colors to all 4 keyboard zones.
-* **Hardware Animations:** Full support for built-in effects (Wave, Breath, Neon, Shifting, Zoom) with adjustable speed, direction, and base colors.
-* **Dynamic Wallpaper Sync:** Extracts a 4-color gradient from your active wallpaper, applies an LED-specific saturation boost, and maps it across your keyboard zones.
-* **Preset Management:** Create, save, and delete your own custom lighting layouts (comes pre-loaded with themes like Pastel Sky and Arctic Ice).
-* **Boot Daemon:** Supports a `--silent` flag to run a smooth wipe animation and apply your saved settings automatically on system startup without launching the GUI.
-* **Hardware Diagnostics:** Built-in system check to verify if the `/dev/acer-gkbbl-0` device is loaded and has the correct user permissions.
-
-## Requirements
-
-* **Hardware:** Acer Nitro 5 (Tested on AN515-45)
-* **OS:** Linux (Arch, CachyOS, Pop!_OS, etc.)
-* **Dependencies:**
-* The [facer](https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module) kernel module must be installed and loaded.
-* Python 3.8+
-
-### Dependencies
-
-* `colorthief`
-* `Pillow`
-* `PyQt5` (or `PyQt6`)
+NitroRGB is a complete graphical interface and system automation suite for Acer Nitro keyboards on Linux. It provides a modern PyQt5 interface for customizing zones and animations, while utilizing shell scripts to integrate deeply with the system via udev, systemd, and XDG autostart.
 
 ---
 
-## Installation
+## ✨ Core Features
 
-1. Clone the repository:
+* **Complete Hardware Control:** Adjust static zones, set global brightness, or use smooth animations like Wave, Breath, Neon, Shifting, and Zoom.
+* **Wallpaper Sync & Presets:** Extract colors dynamically from your background or choose from built-in presets like *Pastel Sky* and *Arctic Ice*.
+* **Automated Startup Animation:** A desktop autostart entry runs a silent wipe effect automatically when you log into your desktop session.
+* **Systemd Shutdown Hook:** A dedicated shutdown script turns the keyboard completely red during system power-off, checking your GUI settings to ensure animations are enabled before running.
+* **Permission Management:** Automatically provisions udev rules for `/dev/acer-gkbbl-0` to allow non-root hardware access safely.
+
+---
+
+## ⚙️ Dependencies
+
+Before installing NitroRGB, ensure you have the required backend tools and Python libraries installed.
+
+**1. Hardware Backend:**
+
+* [`facer-rgb`](https://www.google.com/search?q=%23) (Required for underlying hardware communication)
+
+**2. Python Libraries:**
+This application requires Python 3, PyQt5 (for the GUI), and Pillow/ColorThief (for the wallpaper sync feature). Because NitroRGB relies on system-level hooks, it is highly recommended to install the core libraries via your system package manager, and use `pip` for `colorthief`:
+
+* **Arch Linux / CachyOS / EndeavourOS:**
+
+```bash
+sudo pacman -S python-pyqt5 python-pillow
+pip install colorthief --break-system-packages
+
+```
+
+* **Debian / Ubuntu / Pop!_OS:**
+
+```bash
+sudo apt install python3-pyqt5 python3-pil
+pip3 install colorthief --break-system-packages
+
+```
+
+* **Fedora:**
+
+```bash
+sudo dnf install python3-qt5 python3-pillow
+pip install colorthief
+
+```
+
+*(Note: If you manage your Python environments using virtual environments, you can install all of them via pip using `pip install PyQt5 Pillow colorthief`).*
+
+---
+
+
+## 🚀 Installation
+
+The provided `install.sh` script handles everything from copying binaries to registering systemd services.
+
+1. Clone the repository and navigate into the directory:
 ```bash
 git clone https://github.com/yourusername/NitroRGB.git
 cd NitroRGB
 
 ```
 
-2. Set up a virtual environment and install the required Python packages:
+
+2. Make the installer executable and run it as root:
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install PyQt5 colorthief Pillow
+chmod +x install.sh
+sudo ./install.sh
 
 ```
 
 
-## Usage
 
-### Launching the GUI
+**What the installer does:**
 
-Run the main script to open the Control Center:
+* Verifies the presence of the `facer-rgb` CLI tool.
+* Copies the main application to `/usr/local/bin/nitrorgb`.
+* Configures udev rules and ensures the `acer_wmi` kernel module auto-loads at boot.
+* Seeds the default JSON configuration to `~/.config/` and `/etc/skel`.
+* Registers the desktop application launcher and XDG session autostart entry.
+* Installs `nitro-red-shutdown.sh` and enables the `nitro-rgb-shutdown.service` via systemd.
+
+---
+
+## 💻 Usage
+
+### GUI Configuration
+
+Launch the Control Center from your application menu, or run it directly from your terminal:
 
 ```bash
-python main.py
+nitrorgb
 
 ```
 
-### Applying on Startup (Silent Mode)
+*Note: Your custom palettes, presets, and preferences are saved locally to `~/.config/nitro_rgb_config.json`.*
 
-To have your keyboard light up with your saved settings (and an optional startup animation) when you boot your computer, add the following command to your desktop environment's autostart applications:
+### Silent Execution
+
+To trigger the background wipe animation manually without opening the graphical interface :
 
 ```bash
-/path/to/NitroRGB/venv/bin/python /path/to/NitroRGB/main.py --silent
+nitrorgb --silent
 
 ```
 
-## Permissions & Troubleshooting
+---
 
-NitroRGB requires write access to `/dev/acer-gkbbl-0` to communicate with the keyboard. If the app launches but the colors don't change, or the built-in Diagnostic tool reports a permission error, you need to set up a `udev` rule to grant your user access to the hardware file.
+## 🧹 Uninstallation
 
-1. Create a new udev rule:
+To completely remove the suite and clean up all system hooks, use the provided `uninstall.sh` script.
+
 ```bash
-sudo nano /etc/udev/rules.d/99-acer-rgb.rules
+chmod +x uninstall.sh
+sudo ./uninstall.sh
 
 ```
 
+* *Note: The underlying `facer-rgb` driver and your personal configuration files in `~/.config` are left untouched.*
 
-2. Add the following line:
-```text
-KERNEL=="acer-gkbbl-0", MODE="0666"
+---
 
-```
+## 📄 License
 
-
-3. Reload the rules:
-```bash
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-
-```
+[MIT](https://www.google.com/search?q=https://choosealicense.com/licenses/mit/)
