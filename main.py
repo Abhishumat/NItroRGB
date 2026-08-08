@@ -12,11 +12,27 @@ from PyQt5.QtGui import QColor
 CONFIG_FILE = os.path.expanduser("~/.config/nitro_rgb_config.json")
 
 # --- Stylesheet ---
-STYLESHEET = """
+THEME = {
+    "@BG_BASE": "#0A0A0A",
+    "@BG_SURFACE": "#17181B",
+    "@BG_ELEMENT": "#181820",
+    "@BG_HOVER": "#384358",
+    
+    "@BORDER_DEFAULT": "#343036",
+    "@BORDER_HOVER": "#FFC19F",
+    
+    "@TEXT_PRIMARY": "#e6edf3",
+    "@TEXT_DISABLED": "#4b5263",
+    
+    "@ACCENT_PRIMARY": "#FBE4D8",
+    "@ACCENT_HOVER": "#E2D5CE",
+}
+
+RAW_STYLESHEET = """
 * { outline: none; }
 QWidget {
-    background-color: #0d1117;
-    color: #e6edf3;
+    background-color: @BG_BASE;
+    color: @TEXT_PRIMARY;
 }
 QLabel {
     background: transparent;
@@ -25,8 +41,8 @@ QSlider {
     background: transparent;
 }
 #sidebar {
-    background-color: #161b22;
-    border-right: 1px solid #30363d;
+    background-color: @BG_SURFACE;
+    border-right: 1px solid @BORDER_DEFAULT;
 }
 #sidebar QPushButton {
     background-color: transparent;
@@ -37,158 +53,165 @@ QSlider {
     font-size: 10.5pt;
     margin: 4px 10px;
 }
-#sidebar QPushButton:hover { background-color: #21262d; }
+#sidebar QPushButton:hover { background-color: @BG_HOVER; }
 #sidebar QPushButton:checked {
-    background-color: #00b48a;
-    color: #0d1117;
+    background-color: @ACCENT_PRIMARY;
+    color: @BG_BASE;
 }
 #sidebar QPushButton:checked:hover {
-    background-color: #00d1a1;
-    color: #0d1117; 
+    background-color: @ACCENT_HOVER;
+    color: @BG_BASE; 
 }
 QRadioButton:disabled { 
-    color: #4b5263; 
+    color: @TEXT_DISABLED; 
 }
 QRadioButton::indicator:disabled, QRadioButton::indicator:disabled:checked {
-    background-color: #1e232b;
-    border-color: #30363d;
+    background-color: @BG_ELEMENT;
+    border-color: @BORDER_DEFAULT;
 }
 .Card {
-    background-color: #161b22;
+    background-color: @BG_SURFACE;
     border-radius: 12px;
-    border: 1px solid #30363d;
+    border: 1px solid @BORDER_DEFAULT;
 }
 .CardHeader {
     font-size: 13pt; 
     font-weight: bold;
-    color: #00b48a;
+    color: @ACCENT_PRIMARY;
     padding-bottom: 12px;
 }
 .ZoneBlock {
-    background-color: #1e232b;
-    border: 2px solid #30363d;
+    background-color: @BG_ELEMENT;
+    border: 2px solid @BORDER_DEFAULT;
     border-radius: 10px;
     padding: 10px;
 }
 .ZoneBlock:hover {
-    border: 2px solid #8b949e; 
+    border: 2px solid @BORDER_HOVER; 
 }
 .ZoneBlock[active="true"] {
-    border: 2px solid #00b48a;
-    background-color: #21262d;
+    border: 2px solid @ACCENT_PRIMARY;
+    background-color: @BG_HOVER;
 }
 .ZoneBlock[active="true"]:hover {
-    border: 2px solid #00d1a1;
+    border: 2px solid @ACCENT_HOVER;
 }
 .ColorSwatch {
     border-radius: 16px;
-    border: 2px solid #30363d;
+    border: 2px solid @BORDER_DEFAULT;
     min-width: 32px; max-width: 32px;
     min-height: 32px; max-height: 32px;
 }
-.ColorSwatch:hover { border: 2px solid #e6edf3; }
+.ColorSwatch:hover { border: 2px solid @TEXT_PRIMARY; }
 .ActionButton {
-    background-color: #21262d;
+    background-color: @BG_HOVER;
     border-radius: 8px;
     padding: 10px 18px;
     font-weight: bold;
-    border: 1px solid #30363d;
+    border: 1px solid @BORDER_DEFAULT;
 }
 .ActionButton:hover {
-    background-color: #30363d;
-    border: 1px solid #00b48a;
+    background-color: @BORDER_DEFAULT;
+    border: 1px solid @ACCENT_PRIMARY;
 }
 .PrimaryButton {
-    background-color: #00b48a;
-    color: #0d1117;
+    background-color: @ACCENT_PRIMARY;
+    color: @BG_BASE;
     font-weight: bold;
     border-radius: 8px;
     padding: 10px 24px;
 }
-.PrimaryButton:hover { background-color: #00d1a1; }
+.PrimaryButton:hover { background-color: @ACCENT_HOVER; }
 QRadioButton, QCheckBox { spacing: 10px; background: transparent; }
 QRadioButton::indicator, QCheckBox::indicator {
     width: 16px; height: 16px;
-    border: 2px solid #30363d;
-    background-color: #1e232b;
+    border: 2px solid @BORDER_DEFAULT;
+    background-color: @BG_ELEMENT;
 }
 QRadioButton::indicator { border-radius: 9px; }
 QCheckBox::indicator { border-radius: 4px; }
-QRadioButton::indicator:hover, QCheckBox::indicator:hover { border-color: #00b48a; }
+QRadioButton::indicator:hover, QCheckBox::indicator:hover { border-color: @ACCENT_PRIMARY; }
 QRadioButton::indicator:checked, QCheckBox::indicator:checked {
-    background-color: #00b48a;
-    border-color: #00b48a;
+    background-color: @ACCENT_PRIMARY;
+    border-color: @ACCENT_PRIMARY;
 }
 QComboBox {
     background-color: transparent;
-    border: 1px solid #30363d;
+    border: 1px solid @BORDER_DEFAULT;
     border-radius: 8px;
     padding: 8px 12px;
-    color: #e6edf3;
+    color: @TEXT_PRIMARY;
 }
 QComboBox:hover {
-    border: 1px solid #00b48a;
-    background-color: #1e232b;
+    border: 1px solid @ACCENT_PRIMARY;
+    background-color: @BG_ELEMENT;
 }
 QComboBox QAbstractItemView {
-    background-color: #161b22; 
-    border: 1px solid #30363d;
-    selection-background-color: #00b48a;
-    selection-color: #0d1117;
+    background-color: @BG_SURFACE; 
+    border: 1px solid @BORDER_DEFAULT;
+    selection-background-color: @ACCENT_PRIMARY;
+    selection-color: @BG_BASE;
     outline: none;
-    color: #e6edf3;
+    color: @TEXT_PRIMARY;
 }
 QSlider::groove:horizontal {
-    background: #30363d;
+    background: @BORDER_DEFAULT;
     height: 6px; border-radius: 3px;
 }
 QSlider::handle:horizontal {
-    background: #00b48a;
+    background: @ACCENT_PRIMARY;
     width: 16px; height: 16px;
     margin: -5px 0; border-radius: 8px;
 }
 QSlider::handle:horizontal:hover {
-    background: #00d1a1;
+    background: @ACCENT_HOVER;
     width: 18px; height: 18px;
     margin: -6px 0; border-radius: 9px;
 }
 """
 
-DIALOG_STYLE = """
+RAW_DIALOG_STYLE = """
 QMessageBox, QInputDialog {
-    background-color: #161b22;
-    color: #e6edf3;
+    background-color: @BG_SURFACE;
+    color: @TEXT_PRIMARY;
 }
 QLabel {
-    color: #e6edf3;
+    color: @TEXT_PRIMARY;
     font-size: 11pt;
     background: transparent;
 }
 QLineEdit {
-    background-color: #0d1117;
-    border: 1px solid #30363d;
+    background-color: @BG_BASE;
+    border: 1px solid @BORDER_DEFAULT;
     border-radius: 6px;
     padding: 8px;
-    color: #e6edf3;
+    color: @TEXT_PRIMARY;
 }
 QLineEdit:focus {
-    border: 1px solid #00b48a;
+    border: 1px solid @ACCENT_PRIMARY;
 }
 QPushButton {
-    background-color: #21262d;
-    border: 1px solid #30363d;
+    background-color: @BG_HOVER;
+    border: 1px solid @BORDER_DEFAULT;
     border-radius: 6px;
     padding: 8px 16px;
     font-weight: bold;
-    color: #e6edf3;
+    color: @TEXT_PRIMARY;
     min-width: 60px;
 }
 QPushButton:hover {
-    background-color: #30363d;
-    border: 1px solid #00b48a;
+    background-color: @BORDER_DEFAULT;
+    border: 1px solid @ACCENT_PRIMARY;
 }
 """
 
+def apply_theme(stylesheet: str, theme: dict) -> str:
+    for var_name, hex_code in theme.items():
+        stylesheet = stylesheet.replace(var_name, hex_code)
+    return stylesheet
+
+STYLESHEET = apply_theme(RAW_STYLESHEET, THEME)
+DIALOG_STYLE = apply_theme(RAW_DIALOG_STYLE, THEME)
 class Card(QFrame):
     def __init__(self, title=None):
         super().__init__()
@@ -292,16 +315,24 @@ class ModernNitroGUI(QMainWindow):
             "zones": {"1": [137, 180, 250], "2": [243, 139, 168], "3": [166, 227, 161], "4": [203, 166, 247]},
             "zone_state": {"1": True, "2": True, "3": True, "4": True},
             "presets": {
-                "Pastel Sky": {
-                    "colors": ["#89b4fa", "#b4befe", "#89dceb", "#74c7ec"],
+                "Thermal Shift (Warm to Cool)": {
+                    "colors": ["#ff0000", "#ff8800", "#8a2be2", "#0000ff"],
                     "states": [True, True, True, True]
                 },
-                "Lavender Dream": {
-                    "colors": ["#cba6f7", "#b4befe", "#f5c2e7", "#cba6f7"],
+                "Cyberpunk Drive": {
+                    "colors": ["#ff00ff", "#9400d3", "#0000ff", "#00ffff"],
                     "states": [True, True, True, True]
                 },
-                "Arctic Ice": {
-                    "colors": ["#89dceb", "#94e2d5", "#74c7ec", "#89b4fa"],
+                "Neon Biohazard": {
+                    "colors": ["#ccff00", "#00ff00", "#00fa9a", "#008080"],
+                    "states": [True, True, True, True]
+                },
+                "Molten Core": {
+                    "colors": ["#8b0000", "#ff0000", "#ff4500", "#ffae42"],
+                    "states": [True, True, True, True]
+                },
+                "Deep Ocean Abyss": {
+                    "colors": ["#00ffff", "#1e90ff", "#0000ff", "#000080"],
                     "states": [True, True, True, True]
                 }
             }
@@ -498,7 +529,6 @@ class ModernNitroGUI(QMainWindow):
         if not preset_data:
             return
 
-        # Directly fetch colors and states from the dictionary
         colors = preset_data.get("colors", ["#ffffff", "#ffffff", "#ffffff", "#ffffff"])
         states = preset_data.get("states", [True, True, True, True])
 
@@ -527,7 +557,6 @@ class ModernNitroGUI(QMainWindow):
         if dialog.exec_() == QInputDialog.Accepted and dialog.textValue().strip():
             name = dialog.textValue().strip()
             
-            # Save BOTH colors and power states
             preset_data = {
                 "colors": [
                     self.rgb_to_hex(self.settings["zones"]["1"]),
@@ -560,7 +589,6 @@ class ModernNitroGUI(QMainWindow):
     def delete_preset(self):
         current_text = self.preset_combo.currentText()
         if current_text == "--- Select Preset ---":
-            # --- FIXED DIALOG STYLING ---
             msg = QMessageBox(self)
             msg.setStyleSheet(DIALOG_STYLE)
             msg.setWindowTitle("Error")
@@ -584,13 +612,10 @@ class ModernNitroGUI(QMainWindow):
 
     def apply_wallpaper_gradient(self):
         try:
-            # Import here so it only loads into memory when the button is clicked
             from wallpaper_colors import extract_gradient
-            
-            # Fetch the calculated gradient
+
             colors = extract_gradient()
             
-            # Apply the colors to the 4 zones
             for i in range(4):
                 zone_key = str(i + 1)
                 hex_color = colors[i]
@@ -646,9 +671,11 @@ class ModernNitroGUI(QMainWindow):
         layout.addWidget(preview_card)
 
         preset_card = Card("Color Palette")
-        presets = ["#89b4fa", "#b4befe", "#89dceb", "#74c7ec", "#a6e3a1", "#f9e2af", 
-                   "#fab387", "#f38ba8", "#eb6f92", "#cba6f7", "#f5c2e7", "#ffffff"]
-
+        
+        presets = [
+            "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#00ffff", "#ff00ff", 
+            "#ff8800", "#8a2be2", "#ff1493", "#00ff7f", "#ffffff", "#6F00FF"
+        ]
         swatch_layout = QGridLayout()
         swatch_layout.setSpacing(14)
         for idx, hex_code in enumerate(presets):
@@ -871,6 +898,20 @@ class ModernNitroGUI(QMainWindow):
         sys_card.content_layout.addWidget(subtitle)
         layout.addWidget(sys_card)
 
+        reset_card = Card("Configuration")
+        reset_btn = QPushButton("Restore Default Settings")
+        reset_btn.setProperty("class", "ActionButton")
+        reset_btn.setCursor(Qt.PointingHandCursor)
+        reset_btn.setStyleSheet("color: #ff4444; border: 1px solid #ff4444;")
+        reset_btn.clicked.connect(self.reset_to_default)
+        
+        reset_sub = QLabel("Wipes your saved palettes, custom presets, and preferences back to a fresh install state.")
+        reset_sub.setStyleSheet("color: #8b949e; margin-top: 6px;")
+        
+        reset_card.content_layout.addWidget(reset_btn)
+        reset_card.content_layout.addWidget(reset_sub)
+        layout.addWidget(reset_card)
+
         diag_card = Card("Diagnostics")
         debug_btn = QPushButton("Check 'facer' Module Status")
         debug_btn.setProperty("class", "ActionButton")
@@ -909,6 +950,46 @@ class ModernNitroGUI(QMainWindow):
             msg.setIcon(QMessageBox.Information)
             
         msg.exec_()
+
+    def reset_to_default(self):
+        msg = QMessageBox(self)
+        msg.setStyleSheet(DIALOG_STYLE)
+        msg.setWindowTitle("Reset Configuration")
+        msg.setText("Are you sure you want to reset all settings to their defaults? This will erase your custom presets.")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setDefaultButton(QMessageBox.No)
+        msg.setIcon(QMessageBox.Warning)
+        
+        if msg.exec_() == QMessageBox.Yes:
+            if os.path.exists(CONFIG_FILE):
+                os.remove(CONFIG_FILE)
+            
+            self.settings = self.load_settings()
+            self.save_and_apply()
+            
+            self.bright_slider.setValue(self.settings.get("brightness", 100))
+            self.speed_slider.setValue(self.settings.get("speed", 5))
+
+            self.update_preset_combo()
+
+            anim_rgb = self.settings.get("anim_color", [0, 180, 138])
+            self.anim_color_btn.setStyleSheet(f"background-color: {self.rgb_to_hex(anim_rgb)};")
+
+            for i in range(4):
+                zone_key = str(i + 1)
+                rgb = self.settings["zones"].get(zone_key, [0, 180, 138])
+                is_on = self.settings.get("zone_state", {}).get(zone_key, True)
+                
+                self.zone_widgets[i].is_on = is_on
+                self.zone_widgets[i].set_color(self.rgb_to_hex(rgb))
+                self.zone_widgets[i]._update_visual_state()
+                
+            success_msg = QMessageBox(self)
+            success_msg.setStyleSheet(DIALOG_STYLE)
+            success_msg.setWindowTitle("Reset Successful")
+            success_msg.setText("Settings have been completely restored to factory defaults.")
+            success_msg.setIcon(QMessageBox.Information)
+            success_msg.exec_()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

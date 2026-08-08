@@ -10,9 +10,8 @@ def get_wallpaper_path():
 
     """Attempts to find the current wallpaper path across different Linux DEs."""
     
-    # 1. Try GNOME / Pop!_OS
+    # 1. Try GNOME
     try:
-        # Check dark mode first, then light mode
         for uri_key in ['picture-uri-dark', 'picture-uri']:
             result = subprocess.run(
                 ['gsettings', 'get', 'org.gnome.desktop.background', uri_key], 
@@ -41,7 +40,6 @@ def get_wallpaper_path():
 
     return None
 
-
 def boost_for_led(r, g, b):
     """
     Transforms monitor RGB to hardware LED RGB.
@@ -50,18 +48,14 @@ def boost_for_led(r, g, b):
     """
     h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
     
-    # 1. Embrace True White / Light Gray (If saturation is almost zero, leave as white)
     if s < 0.08:
         return f"#{r:02x}{g:02x}{b:02x}"
-    
-    # 2. For any actual hue, force a minimum saturation threshold (~0.75) 
-    # so pale/pastel shades become rich on physical keyboard LEDs
+
     s_boosted = min(1.0, max(s * 2.0, 0.75))
     v_boosted = min(1.0, max(v * 1.2, 0.85))
     
     r_new, g_new, b_new = colorsys.hsv_to_rgb(h, s_boosted, v_boosted)
     return f"#{int(r_new * 255):02x}{int(g_new * 255):02x}{int(b_new * 255):02x}"
-
 
 def extract_gradient(image_path=None):
     """
@@ -81,8 +75,7 @@ def extract_gradient(image_path=None):
         
         if not palette:
             return fallback_palette
-            
-        # Post-process every color through our LED booster
+
         boosted_colors = []
         for r, g, b in palette:
             hex_code = boost_for_led(r, g, b)

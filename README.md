@@ -25,7 +25,7 @@ Before installing NitroRGB, ensure you have the required backend tools and Pytho
 **2. Python Libraries:**
 This application requires Python 3, PyQt5 (for the GUI), and Pillow/ColorThief (for the wallpaper sync feature). Because NitroRGB relies on system-level hooks, it is highly recommended to install the core libraries via your system package manager, and use `pip` for `colorthief`:
 
-* **Arch Linux / CachyOS / EndeavourOS:**
+* **Arch Linux :**
 
 ```bash
 sudo pacman -S python-pyqt5 python-pillow
@@ -33,7 +33,7 @@ pip install colorthief --break-system-packages
 
 ```
 
-* **Debian / Ubuntu / Pop!_OS:**
+* **Debian / Ubuntu Based :**
 
 ```bash
 sudo apt install python3-pyqt5 python3-pil
@@ -41,7 +41,7 @@ pip3 install colorthief --break-system-packages
 
 ```
 
-* **Fedora:**
+* **Fedora :**
 
 ```bash
 sudo dnf install python3-qt5 python3-pillow
