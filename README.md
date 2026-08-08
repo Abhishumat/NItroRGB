@@ -7,7 +7,7 @@ NitroRGB is a complete graphical interface and system automation suite for Acer 
 
 ---
 
-## ✨ Core Features
+## Core Features
 
 * **Complete Hardware Control:** Adjust static zones, set global brightness, or use smooth animations like Wave, Breath, Neon, Shifting, and Zoom.
 * **Wallpaper Sync & Presets:** Extract colors dynamically from your background or choose from built-in presets like *Pastel Sky* and *Arctic Ice*.
@@ -17,7 +17,7 @@ NitroRGB is a complete graphical interface and system automation suite for Acer 
 
 ---
 
-## ⚙️ Dependencies
+## Dependencies
 
 Before installing NitroRGB, ensure you have the required backend tools and Python libraries installed.
 
@@ -57,7 +57,7 @@ pip install colorthief
 ---
 
 
-## 🚀 Installation
+## Installation
 
 The provided `install.sh` script handles everything from copying binaries to registering systemd services.
 
@@ -89,7 +89,7 @@ sudo ./install.sh
 
 ---
 
-## 💻 Usage
+## Usage
 
 ### GUI Configuration
 
@@ -113,7 +113,7 @@ nitrorgb --silent
 
 ---
 
-## 🧹 Uninstallation
+## Uninstallation
 
 To completely remove the suite and clean up all system hooks, use the provided `uninstall.sh` script.
 
