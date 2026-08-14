@@ -5,10 +5,9 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QGridLayout, QPushButton, QLabel, 
                              QStackedWidget, QFrame, QComboBox, QSlider, 
                              QRadioButton, QButtonGroup, QCheckBox, QColorDialog, 
-                             QListView, QMessageBox, QInputDialog)
+                             QListView, QMessageBox, QInputDialog,)
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor
-
+from PyQt5.QtGui import (QColor,QIcon)
 CONFIG_FILE = os.path.expanduser("~/.config/acer_rgb_hub_config.json")
 
 # --- Stylesheet ---
@@ -334,6 +333,26 @@ class ModernAcerRGBHub(QMainWindow):
                 "Deep Ocean Abyss": {
                     "colors": ["#00ffff", "#1e90ff", "#0000ff", "#000080"],
                     "states": [True, True, True, True]
+                },
+                "Neon Syndicate": {
+                    "colors": ["#ff00ff", "#8a2be2", "#0000ff", "#00ffff"],
+                    "states": [True, True, True, True]
+                },
+                "Radioactive Fallout": {
+                    "colors": ["#39ff14", "#00ff00", "#00fa9a", "#00ffff"],
+                    "states": [True, True, True, True]
+                },
+                "Deep Space Void": {
+                    "colors": ["#0000ff", "#00008b", "#4b0082", "#9400d3"],
+                    "states": [True, True, True, True]
+                },
+                "Plasma Cutter": {
+                    "colors": ["#00ffff", "#00bfff", "#1e90ff", "#0000ff"],
+                    "states": [True, True, True, True]
+                },
+                "Vampire Tech": {
+                    "colors": ["#ff0000", "#800000", "#8b008b", "#ff00ff"],
+                    "states": [True, True, True, True]
                 }
             }
         }
@@ -403,6 +422,10 @@ class ModernAcerRGBHub(QMainWindow):
         self.setWindowTitle("Acer-RGB-Hub")
         self.setGeometry(150, 150, 1200, 640) 
         self.setStyleSheet(STYLESHEET)
+        icon_path = "/usr/share/pixmaps/acer-rgb-gui.jpg"
+        if not os.path.exists(icon_path):
+            icon_path = "logo.jpg"
+        self.setWindowIcon(QIcon(icon_path))
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)

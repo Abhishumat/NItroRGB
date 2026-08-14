@@ -25,11 +25,13 @@ fi
 echo "[2/5] Removing installed binaries..."
 rm -f /usr/local/bin/facer-gui
 rm -f /usr/local/bin/facer-red-shutdown.sh
+rm -rf /opt/facer-gui
 
 # 3. Remove Desktop Launchers & Autostart
 echo "[3/5] Removing application launchers..."
 rm -f /usr/share/applications/facer-gui.desktop
 rm -f /etc/xdg/autostart/facer-gui-autostart.desktop
+rm -f /usr/share/pixmaps/acer-rgb-gui.jpg
 
 # 4. Remove Udev Rules & Kernel Auto-load Config
 echo "[4/5] Removing udev rules and module autoload configs..."

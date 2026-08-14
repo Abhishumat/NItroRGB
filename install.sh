@@ -17,9 +17,22 @@ if ! command -v facer-rgb &> /dev/null; then
     echo "Ensure facer-rgb driver binary is placed in /usr/local/bin or /usr/bin."
 fi
 
-# 2. Install main Python executable
-echo "[1/7] Copying application binary to /usr/local/bin/facer-gui..."
-cp main.py /usr/local/bin/facer-gui
+# 2. Install main application and dependencies globally
+echo "[1/7] Setting up application environment in /opt/facer-gui..."
+
+mkdir -p /opt/facer-gui
+cp main.py /opt/facer-gui/facer-gui.py
+cp wallpaper_colors.py /opt/facer-gui/  # <-- ADD THIS LINE
+chmod +x /opt/facer-gui/facer-gui.py
+
+python3 -m venv --system-site-packages /opt/facer-gui/venv
+echo "Installing Python dependencies (Pillow, ColorThief)..."
+/opt/facer-gui/venv/bin/pip install --quiet pillow colorthief
+cat << 'EOF' > /usr/local/bin/facer-gui
+#!/bin/bash
+exec /opt/facer-gui/venv/bin/python /opt/facer-gui/facer-gui.py "$@"
+EOF
+
 chmod +x /usr/local/bin/facer-gui
 
 # 3. Configure udev rules for non-root hardware access
@@ -63,6 +76,14 @@ if [ -n "$SUDO_USER" ]; then
     fi
 fi
 
+echo "Installing application logo..."
+if [ -f "logo.jpg" ]; then
+    cp logo.jpg /usr/share/pixmaps/acer-rgb-gui.jpg
+    chmod 644 /usr/share/pixmaps/acer-rgb-gui.jpg
+else
+    echo "Warning: logo.jpg not found in the current directory. Skipping icon installation."
+fi
+
 # 6. Install desktop app launcher and XDG autostart entry
 echo "[5/7] Installing desktop integration and session autostart..."
 cat <<EOF > /usr/share/applications/facer-gui.desktop
@@ -71,9 +92,9 @@ Type=Application
 Name=Facer GUI
 Comment=Facer RGB Configuration
 Exec=/usr/local/bin/facer-gui
-Icon=input-gaming
+Icon=/usr/share/pixmaps/acer-rgb-gui.jpg
 Terminal=false
-Categories=System;Settings;
+Categories=System;Settings;HardwareSettings;
 EOF
 
 cat <<EOF > /etc/xdg/autostart/facer-gui-autostart.desktop
