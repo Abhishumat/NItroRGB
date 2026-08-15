@@ -1,14 +1,29 @@
 #!/usr/bin/env python3
 
-import sys, os, time, json, subprocess
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                             QHBoxLayout, QGridLayout, QPushButton, QLabel, 
-                             QStackedWidget, QFrame, QComboBox, QSlider, 
-                             QRadioButton, QButtonGroup, QCheckBox, QColorDialog, 
-                             QListView, QMessageBox, QInputDialog,)
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import (QColor,QIcon)
-CONFIG_FILE = os.path.expanduser("~/.config/acer_rgb_hub_config.json")
+import sys
+import os
+import time
+import json
+import subprocess
+from pathlib import Path
+
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                                QHBoxLayout, QGridLayout, QPushButton, QLabel, 
+                                QStackedWidget, QFrame, QComboBox, QSlider, 
+                                QRadioButton, QButtonGroup, QCheckBox, QColorDialog, 
+                                QListView, QMessageBox, QInputDialog, QDialog)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QColor, QIcon
+
+CONFIG_FILE = Path("~/.config/acer_rgb_hub_config.json").expanduser()
+
+ANIMATION_MODES = {
+    "Wave": {"id": 3, "direction": True},
+    "Breath": {"id": 1, "direction": False},
+    "Neon": {"id": 2, "direction": False},
+    "Shifting": {"id": 4, "direction": True},
+    "Zoom": {"id": 5, "direction": False}
+}
 
 # --- Stylesheet ---
 THEME = {
@@ -204,103 +219,32 @@ QPushButton:hover {
 }
 """
 
-def apply_theme(stylesheet: str, theme: dict) -> str:
+def apply_theme(stylesheet: str, theme: dict):
     for var_name, hex_code in theme.items():
         stylesheet = stylesheet.replace(var_name, hex_code)
     return stylesheet
 
+def hex_to_rgb(hex_str):
+    hex_str = hex_str.lstrip('#')
+    return [int(hex_str[i:i+2], 16) for i in (0, 2, 4)]
+
+def rgb_to_hex(rgb_list):
+    return f"#{rgb_list[0]:02x}{rgb_list[1]:02x}{rgb_list[2]:02x}"
+
 STYLESHEET = apply_theme(RAW_STYLESHEET, THEME)
 DIALOG_STYLE = apply_theme(RAW_DIALOG_STYLE, THEME)
-class Card(QFrame):
-    def __init__(self, title=None):
-        super().__init__()
-        self.setProperty("class", "Card")
-        self.layout = QVBoxLayout()
-        self.layout.setContentsMargins(18, 18, 18, 18)
-        
-        if title:
-            title_label = QLabel(title)
-            title_label.setProperty("class", "CardHeader")
-            self.layout.addWidget(title_label)
-        
-        self.content_layout = QVBoxLayout()
-        self.layout.addLayout(self.content_layout)
-        self.setLayout(self.layout)
 
-class ZoneWidget(QFrame):
-    def __init__(self, zone_id, name, default_color, is_on, on_click, on_power_toggle):
-        super().__init__()
-        self.zone_id = zone_id
-        self.color = default_color
-        self.on_click = on_click
-        self.on_power_toggle = on_power_toggle
-        self.is_on = is_on 
-        
-        self.setProperty("class", "ZoneBlock")
-        self.setProperty("active", "false")
-        self.setCursor(Qt.PointingHandCursor)
-        self.setAttribute(Qt.WA_Hover)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-
-        self.color_bar = QFrame()
-        self.color_bar.setFixedHeight(48)
-        
-        bar_layout = QHBoxLayout(self.color_bar)
-        bar_layout.setContentsMargins(0, 0, 0, 0)
-        bar_layout.setAlignment(Qt.AlignCenter)
-        
-        self.power_btn = QPushButton("⏻")
-        self.power_btn.setFixedSize(36, 36)
-        self.power_btn.setCursor(Qt.PointingHandCursor)
-        self.power_btn.clicked.connect(self.toggle_power)
-        bar_layout.addWidget(self.power_btn)
-        
-        bottom_layout = QHBoxLayout()
-        self.label = QLabel(name)
-        self.label.setStyleSheet("font-weight: bold; font-size: 9.5pt; background: transparent;")
-        bottom_layout.addWidget(self.label)
-        bottom_layout.addStretch()
-
-        layout.addWidget(self.color_bar)
-        layout.addSpacing(6)
-        layout.addLayout(bottom_layout)
-        
-        self._update_visual_state()
-
-    def mousePressEvent(self, event):
-        self.on_click(self.zone_id)
-
-    def toggle_power(self):
-        self.is_on = not self.is_on
-        self._update_visual_state()
-        self.on_power_toggle(self.zone_id, self.is_on)
-
-    def _update_visual_state(self):
-        display_color = self.color if self.is_on else "#000000"
-        self.color_bar.setStyleSheet(f"background-color: {display_color}; border-radius: 8px;")
-        icon_color = "rgba(0, 0, 0, 0.35)" if self.is_on else "#ff4444"
-        self.power_btn.setStyleSheet(f"border: none; color: {icon_color}; font-size: 16pt; font-weight: bold; background: transparent;")
-
-    def set_color(self, hex_color):
-        self.color = hex_color
-        if self.is_on:
-            self.color_bar.setStyleSheet(f"background-color: {hex_color}; border-radius: 8px;")
-
-    def set_active(self, is_active):
-        self.setProperty("active", "true" if is_active else "false")
-        self.style().unpolish(self)
-        self.style().polish(self)
-
-class ModernAcerRGBHub(QMainWindow):
-    def __init__(self, build_ui=True):
-        super().__init__()
+class AcerRGBController:
+    def __init__(self):
         self.settings = self.load_settings()
-        self.active_zone = 0
-        
-        if build_ui:
-            self.init_ui()
+
+    def deep_merge(self, default_dict, saved_dict):
+        for key, value in saved_dict.items():
+            if isinstance(value, dict) and key in default_dict and isinstance(default_dict[key], dict):
+                self.deep_merge(default_dict[key], value)
+            else:
+                default_dict[key] = value
+        return default_dict
 
     def load_settings(self):
         default_settings = {
@@ -356,23 +300,23 @@ class ModernAcerRGBHub(QMainWindow):
                 }
             }
         }
-        if os.path.exists(CONFIG_FILE):
+        if CONFIG_FILE.exists():
             try:
                 with open(CONFIG_FILE, 'r') as f: 
                     saved = json.load(f)
-                    return {**default_settings, **saved}
+                    return self.deep_merge(default_settings, saved)
             except json.JSONDecodeError:
                 pass 
         return default_settings
-
+    
     def save_settings(self):
-        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(CONFIG_FILE, 'w') as f: 
             json.dump(self.settings, f, indent=4)
 
-    def run_cmd(self, cmd):
+    def run_cmd(self, cmd_list):
         try:
-            subprocess.run(cmd, shell=True, executable='/bin/bash', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(cmd_list, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as e:
             print(f"Command execution failed: {e}")
 
@@ -384,46 +328,215 @@ class ModernAcerRGBHub(QMainWindow):
             for z, rgb in s["zones"].items():
                 is_on = s.get("zone_state", {}).get(z, True)
                 r, g, b_col = rgb if is_on else [0, 0, 0]
-                self.run_cmd(f"facer-rgb -m 0 -b {b} -z {z} -cR {r} -cG {g} -cB {b_col}")
-                time.sleep(0.05)
+                
+                cmd = ["facer-rgb", "-m", "0", "-b", str(b), "-z", str(z), "-cR", str(r), "-cG", str(g), "-cB", str(b_col)]
+                self.run_cmd(cmd)
         else:
             rgb = s.get("anim_color", [0, 180, 138])
-            self.run_cmd(f"facer-rgb -m {s['mode']} -b {b} -s {s['speed']} -d {s['direction']} -cR {rgb[0]} -cG {rgb[1]} -cB {rgb[2]}")
+
+            cmd = ["facer-rgb", "-m", str(s['mode']), "-b", str(b), "-s", str(s['speed']), "-d", str(s['direction']), "-cR", str(rgb[0]), "-cG", str(rgb[1]), "-cB", str(rgb[2])]
+            self.run_cmd(cmd)
 
     def save_and_apply(self):
         self.save_settings()
         self.apply_saved_settings()
 
-    def run_startup_animation(self):
-        mode = self.settings.get("mode", 0)
-        anim_enabled = self.settings.get("startup_animation", True)
+    def play_startup_wipe_blocking(self):
+        """Used ONLY by headless/CLI mode where freezing the thread is acceptable."""
+        for z_id in range(1, 5):
+            rgb = self.settings["zones"].get(str(z_id), [0, 180, 138])
+            b = self.settings.get("brightness", 100)
+            cmd = ["facer-rgb", "-m", "0", "-b", str(b), "-z", str(z_id), "-cR", str(rgb[0]), "-cG", str(rgb[1]), "-cB", str(rgb[2])]
+            self.run_cmd(cmd)
+            time.sleep(0.2)
+        self.apply_saved_settings()
+
+    #--------------------------------
+
+    def set_mode(self, mode_id, mode_name):
+        self.settings["mode"] = mode_id
+        self.settings["mode_name"] = mode_name
+
+    def set_brightness(self, brightness):
+        self.settings["brightness"] = brightness
+
+    def set_zone_color(self, zone_idx, rgb):
+        zone_key = str(zone_idx + 1)
+        self.settings["zones"][zone_key] = rgb
+        self.settings["zone_state"][zone_key] = True
+        self.set_mode(0, "Static")
+
+    def toggle_zone_power(self, zone_idx):
+        zone_key = str(zone_idx + 1)
+        if "zone_state" not in self.settings:
+            self.settings["zone_state"] = {"1": True, "2": True, "3": True, "4": True}
+        
+        current = self.settings["zone_state"].get(zone_key, True)
+        self.settings["zone_state"][zone_key] = not current
+        self.set_mode(0, "Static")
+
+    def set_animation_props(self, speed, direction, anim_color=None):
+        self.settings["speed"] = speed
+        self.settings["direction"] = direction
+        if anim_color is not None:
+            self.settings["anim_color"] = anim_color
+
+    def apply_preset(self, preset_name):
+        preset_data = self.settings.get("presets", {}).get(preset_name)
+        if not preset_data: return False
+        
+        for i in range(4):
+            zone_key = str(i + 1)
+            self.settings["zones"][zone_key] = hex_to_rgb(preset_data["colors"][i])
+            self.settings["zone_state"][zone_key] = preset_data["states"][i]
+
+        self.set_mode(0, "Static")
+        return True
+
+    def save_preset(self, name):
+        preset_data = {
+            "colors": [rgb_to_hex(self.settings["zones"][str(i)]) for i in range(1, 5)],
+            "states": [self.settings.get("zone_state", {}).get(str(i), True) for i in range(1, 5)]
+        }
+        if "presets" not in self.settings:
+            self.settings["presets"] = {}
+        self.settings["presets"][name] = preset_data
+        self.save_settings()
+
+    def delete_preset(self, name):
+        if "presets" in self.settings and name in self.settings["presets"]:
+            del self.settings["presets"][name]
+            self.save_settings()
+
+    def set_startup_animation(self, enabled):
+        self.settings["startup_animation"] = enabled
+        self.save_settings()
+
+    def reset_defaults(self):
+        if CONFIG_FILE.exists():
+            CONFIG_FILE.unlink()
+        self.settings = self.load_settings()
+
+
+class Card(QFrame):
+    def __init__(self, title=None):
+        super().__init__()
+        self.setProperty("class", "Card")
+        self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(18, 18, 18, 18)
+        
+        if title:
+            title_label = QLabel(title)
+            title_label.setProperty("class", "CardHeader")
+            self.layout.addWidget(title_label)
+        
+        self.content_layout = QVBoxLayout()
+        self.layout.addLayout(self.content_layout)
+        self.setLayout(self.layout)
+
+
+class ZoneWidget(QFrame):
+    def __init__(self, zone_id, name, on_click, on_power_toggle):
+        super().__init__()
+        self.zone_id = zone_id
+        self.on_click = on_click
+        self.on_power_toggle = on_power_toggle
+        
+        self.setProperty("class", "ZoneBlock")
+        self.setProperty("active", "false")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        self.color_bar = QFrame()
+        self.color_bar.setFixedHeight(48)
+        
+        bar_layout = QHBoxLayout(self.color_bar)
+        bar_layout.setContentsMargins(0, 0, 0, 0)
+        bar_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        self.power_btn = QPushButton("⏻")
+        self.power_btn.setFixedSize(36, 36)
+        self.power_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.power_btn.clicked.connect(self._handle_power_click)
+        bar_layout.addWidget(self.power_btn)
+        
+        bottom_layout = QHBoxLayout()
+        self.label = QLabel(name)
+        self.label.setStyleSheet("font-weight: bold; font-size: 9.5pt; background: transparent;")
+        bottom_layout.addWidget(self.label)
+        bottom_layout.addStretch()
+
+        layout.addWidget(self.color_bar)
+        layout.addSpacing(6)
+        layout.addLayout(bottom_layout)
+
+    def mousePressEvent(self, event):
+        self.on_click(self.zone_id)
+
+    def _handle_power_click(self, checked=False):
+        self.on_power_toggle(self.zone_id)
+
+    def update_visuals(self, hex_color, is_on):
+        """Called ONLY by sync_ui_to_settings to enforce a single source of truth."""
+        display_color = hex_color if is_on else "#000000"
+        self.color_bar.setStyleSheet(f"background-color: {display_color}; border-radius: 8px;")
+        icon_color = "rgba(0, 0, 0, 0.35)" if is_on else "#ff4444"
+        self.power_btn.setStyleSheet(f"border: none; color: {icon_color}; font-size: 16pt; font-weight: bold; background: transparent;")
+
+    def set_active(self, is_active):
+        self.setProperty("active", "true" if is_active else "false")
+        self.style().unpolish(self)
+        self.style().polish(self)
+
+
+class AcerRGBHubUI(QMainWindow):
+    def __init__(self, controller):  
+        super().__init__()
+        self.controller = controller 
+        self.active_zone = 0
+        self.init_ui()
+
+    def run_startup_animation_async(self):
+        """GUI-specific animation using QTimer to avoid locking the UI."""
+        mode = self.controller.settings.get("mode", 0)
+        anim_enabled = self.controller.settings.get("startup_animation", True)
         
         if mode == 0 and anim_enabled:
-            time.sleep(0.5) 
-            for z_id in range(1, 5):
-                rgb = self.settings["zones"].get(str(z_id), [0, 180, 138])
-                b = self.settings.get("brightness", 100)
-                cmd = f"facer-rgb -m 0 -b {b} -z {z_id} -cR {rgb[0]} -cG {rgb[1]} -cB {rgb[2]}"
-                self.run_cmd(cmd)
-                time.sleep(0.2) 
-            self.apply_saved_settings()
+            self.startup_zone_index = 1 
+            self.setEnabled(False) 
+            self.startup_timer = QTimer(self)
+            self.startup_timer.timeout.connect(self._animate_next_zone)
+            self.startup_timer.start(200) 
         else:
-            self.apply_saved_settings()
+            self.controller.apply_saved_settings()
 
-    def hex_to_rgb(self, hex_str):
-        hex_str = hex_str.lstrip('#')
-        return [int(hex_str[i:i+2], 16) for i in (0, 2, 4)]
-
-    def rgb_to_hex(self, rgb_list):
-        return f"#{rgb_list[0]:02x}{rgb_list[1]:02x}{rgb_list[2]:02x}"
-
+    def _animate_next_zone(self):
+        if self.startup_zone_index > 4:
+            self.startup_timer.stop()
+            self.startup_timer.deleteLater()
+            self.setEnabled(True) # Unlock UI
+            self.controller.apply_saved_settings() 
+            return
+            
+        z_id = str(self.startup_zone_index)
+        rgb = self.controller.settings["zones"].get(z_id, [0, 180, 138])
+        b = self.controller.settings.get("brightness", 100)
+        
+        cmd = ["facer-rgb", "-m", "0", "-b", str(b), "-z", z_id, "-cR", str(rgb[0]), "-cG", str(rgb[1]), "-cB", str(rgb[2])]
+        
+        self.controller.run_cmd(cmd)
+        self.startup_zone_index += 1
+    
 #---------------------------------
     def init_ui(self):
         self.setWindowTitle("Acer-RGB-Hub")
         self.setGeometry(150, 150, 1200, 640) 
         self.setStyleSheet(STYLESHEET)
         icon_path = "/usr/share/pixmaps/acer-rgb-gui.jpg"
-        if not os.path.exists(icon_path):
+        if not Path(icon_path).exists():
             icon_path = "logo.jpg"
         self.setWindowIcon(QIcon(icon_path))
 
@@ -440,7 +553,7 @@ class ModernAcerRGBHub(QMainWindow):
         sidebar_layout.setContentsMargins(0, 24, 0, 24)
 
         title = QLabel("<b>Acer-RGB-Hub</b>")
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 15pt; letter-spacing: 2px; margin-bottom: 24px;")
         sidebar_layout.addWidget(title)
 
@@ -450,7 +563,7 @@ class ModernAcerRGBHub(QMainWindow):
 
         for btn in (self.btn_static, self.btn_anim, self.btn_settings):
             btn.setCheckable(True)
-            btn.setCursor(Qt.PointingHandCursor)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.nav_group = QButtonGroup()
         self.nav_group.addButton(self.btn_static, 0)
@@ -476,7 +589,7 @@ class ModernAcerRGBHub(QMainWindow):
         main_layout.addWidget(sidebar)
         main_layout.addWidget(content_container)
 
-        if self.settings.get("mode", 0) > 0:
+        if self.controller.settings.get("mode", 0) > 0:
             self.btn_anim.setChecked(True)
             self.stacked_widget.setCurrentIndex(1)
         else:
@@ -484,14 +597,14 @@ class ModernAcerRGBHub(QMainWindow):
             self.stacked_widget.setCurrentIndex(0)
 
         self.select_zone(0)
+        self.sync_ui_to_settings()
 
     def switch_tab(self, index):
         self.stacked_widget.setCurrentIndex(index)
-        current_mode = self.settings.get("mode", 0)
+        current_mode = self.controller.settings.get("mode", 0)
         if index == 0 and current_mode != 0:
-            self.settings["mode"] = 0
-            self.settings["mode_name"] = "Static"
-            self.save_and_apply()
+            self.controller.set_mode(0, "Static")
+            self.controller.save_and_apply()
         elif index == 1 and current_mode == 0:
             self.apply_animation()
 
@@ -500,76 +613,71 @@ class ModernAcerRGBHub(QMainWindow):
         for zid, widget in self.zone_widgets.items():
             widget.set_active(zid == zone_id)
 
-    def toggle_zone_power(self, zone_idx, is_on):
-        zone_key = str(zone_idx + 1)
-        if "zone_state" not in self.settings:
-            self.settings["zone_state"] = {"1": True, "2": True, "3": True, "4": True}
-        
-        self.settings["zone_state"][zone_key] = is_on
-        self.settings["mode"] = 0
-        self.settings["mode_name"] = "Static"
-        self.save_and_apply()
+    def toggle_zone_power(self, zone_idx):
+        self.controller.toggle_zone_power(zone_idx)
+        self.sync_ui_to_settings()
+        self.controller.save_and_apply()
 
     def apply_color_to_active_zone(self, hex_color):
-        rgb = self.hex_to_rgb(hex_color)
-        zone_key = str(self.active_zone + 1)
-        self.settings["zones"][zone_key] = rgb
-        self.settings["mode"] = 0
-        self.settings["mode_name"] = "Static"
-        
-        self.settings["zone_state"][zone_key] = True
-        self.zone_widgets[self.active_zone].is_on = True
-        self.zone_widgets[self.active_zone].set_color(hex_color)
-        self.zone_widgets[self.active_zone]._update_visual_state()
-
-        self.save_and_apply()
+        rgb = hex_to_rgb(hex_color)
+        self.controller.set_zone_color(self.active_zone, rgb)
+        self.sync_ui_to_settings()
+        self.controller.save_and_apply()
 
     def open_color_picker(self):
         zone_key = str(self.active_zone + 1)
-        curr_rgb = self.settings["zones"].get(zone_key, [0, 180, 138])
+        curr_rgb = self.controller.settings["zones"].get(zone_key, [0, 180, 138])
         color = QColorDialog.getColor(QColor(*curr_rgb), self, "Select Custom Color")
         if color.isValid():
             self.apply_color_to_active_zone(color.name())
 
 #---------------------------------
+
+    def sync_ui_to_settings(self):
+        """Updates ALL UI components to perfectly mirror the internal self.controller.settings dict."""
+        self.bright_slider.setValue(self.controller.settings.get("brightness", 100))
+        self.speed_slider.setValue(self.controller.settings.get("speed", 5))
+
+        anim_rgb = self.controller.settings.get("anim_color", [0, 180, 138])
+        self.anim_color_btn.setStyleSheet(f"background-color: {rgb_to_hex(anim_rgb)};")
+
+        if hasattr(self, 'anim_toggle'):
+            self.anim_toggle.blockSignals(True)
+            self.anim_toggle.setChecked(self.controller.settings.get("startup_animation", True))
+            self.anim_toggle.blockSignals(False)
+
+        if hasattr(self, 'btn_anim') and hasattr(self, 'stacked_widget'):
+            if self.controller.settings.get("mode", 0) > 0:
+                self.btn_anim.setChecked(True)
+                self.stacked_widget.setCurrentIndex(1)
+            else:
+                self.btn_static.setChecked(True)
+                self.stacked_widget.setCurrentIndex(0)
+
+        for i in range(4):
+            zone_key = str(i + 1)
+            rgb = self.controller.settings["zones"].get(zone_key, [0, 180, 138])
+            is_on = self.controller.settings.get("zone_state", {}).get(zone_key, True)
+            
+            self.zone_widgets[i].update_visuals(rgb_to_hex(rgb), is_on)
+
     def apply_brightness(self):
-        self.settings["brightness"] = self.bright_slider.value()
-        self.save_and_apply()
+        self.controller.set_brightness(self.bright_slider.value())
+        self.controller.save_and_apply()
 
     def update_preset_combo(self):
         self.preset_combo.blockSignals(True)
         self.preset_combo.clear()
         self.preset_combo.addItem("---Select Preset---")
-        for preset_name in self.settings.get("presets", {}).keys():
+        for preset_name in self.controller.settings.get("presets", {}).keys():
             self.preset_combo.addItem(preset_name)
         self.preset_combo.blockSignals(False)
 
     def apply_preset(self, preset_name):
-        if preset_name == "--- Select Preset ---":
-            return
-            
-        preset_data = self.settings["presets"].get(preset_name)
-        if not preset_data:
-            return
-
-        colors = preset_data.get("colors", ["#ffffff", "#ffffff", "#ffffff", "#ffffff"])
-        states = preset_data.get("states", [True, True, True, True])
-
-        for i in range(4):
-            zone_key = str(i + 1)
-            hex_color = colors[i]
-            is_on = states[i]
-            
-            self.settings["zones"][zone_key] = self.hex_to_rgb(hex_color)
-            self.settings["zone_state"][zone_key] = is_on
-            
-            self.zone_widgets[i].is_on = is_on
-            self.zone_widgets[i].set_color(hex_color)
-            self.zone_widgets[i]._update_visual_state()
-
-        self.settings["mode"] = 0
-        self.settings["mode_name"] = "Static"
-        self.save_and_apply()
+        if preset_name == "---Select Preset---": return
+        if self.controller.apply_preset(preset_name):
+            self.sync_ui_to_settings()  
+            self.controller.save_and_apply()
 
     def prompt_save_preset(self):
         dialog = QInputDialog(self)
@@ -577,97 +685,66 @@ class ModernAcerRGBHub(QMainWindow):
         dialog.setLabelText("Enter preset name:")
         dialog.setStyleSheet(DIALOG_STYLE)
         
-        if dialog.exec_() == QInputDialog.Accepted and dialog.textValue().strip():
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.textValue().strip():
             name = dialog.textValue().strip()
-            
-            preset_data = {
-                "colors": [
-                    self.rgb_to_hex(self.settings["zones"]["1"]),
-                    self.rgb_to_hex(self.settings["zones"]["2"]),
-                    self.rgb_to_hex(self.settings["zones"]["3"]),
-                    self.rgb_to_hex(self.settings["zones"]["4"])
-                ],
-                "states": [
-                    self.settings.get("zone_state", {}).get("1", True),
-                    self.settings.get("zone_state", {}).get("2", True),
-                    self.settings.get("zone_state", {}).get("3", True),
-                    self.settings.get("zone_state", {}).get("4", True)
-                ]
-            }
-            
-            if "presets" not in self.settings:
-                self.settings["presets"] = {}
-                
-            self.settings["presets"][name] = preset_data
-            self.save_settings()
+            self.controller.save_preset(name)
             self.update_preset_combo()
             
             msg = QMessageBox(self)
             msg.setStyleSheet(DIALOG_STYLE)
             msg.setWindowTitle("Success")
             msg.setText(f"Preset '{name}' saved successfully!")
-            msg.setIcon(QMessageBox.Information)
-            msg.exec_()
+            msg.setIcon(QMessageBox.Icon.Information)
+            msg.exec()
 
     def delete_preset(self):
         current_text = self.preset_combo.currentText()
-        if current_text == "--- Select Preset ---":
+        if current_text == "---Select Preset---":
             msg = QMessageBox(self)
             msg.setStyleSheet(DIALOG_STYLE)
             msg.setWindowTitle("Error")
             msg.setText("Please select a preset to delete.")
-            msg.setIcon(QMessageBox.Warning)
-            msg.exec_()
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.exec()
             return
             
         msg = QMessageBox(self)
         msg.setStyleSheet(DIALOG_STYLE)
         msg.setWindowTitle("Confirm Delete")
         msg.setText(f"Are you sure you want to delete '{current_text}'?")
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg.setDefaultButton(QMessageBox.No)
-        msg.setIcon(QMessageBox.Question)
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg.setDefaultButton(QMessageBox.StandardButton.No)
+        msg.setIcon(QMessageBox.Icon.Question)
         
-        if msg.exec_() == QMessageBox.Yes:
-            del self.settings["presets"][current_text]
-            self.save_settings()
+        if msg.exec() == QMessageBox.StandardButton.Yes:
+            self.controller.delete_preset(current_text)
             self.update_preset_combo()
 
     def apply_wallpaper_gradient(self):
         try:
             from wallpaper_colors import extract_gradient
-
             colors = extract_gradient()
             
             for i in range(4):
-                zone_key = str(i + 1)
-                hex_color = colors[i]
-                
-                self.settings["zones"][zone_key] = self.hex_to_rgb(hex_color)
-                self.settings["zone_state"][zone_key] = True
-                
-                self.zone_widgets[i].is_on = True
-                self.zone_widgets[i].set_color(hex_color)
-                self.zone_widgets[i]._update_visual_state()
+                self.controller.set_zone_color(i, hex_to_rgb(colors[i]))
 
-            self.settings["mode"] = 0
-            self.settings["mode_name"] = "Static"
-            self.save_and_apply()
+            self.sync_ui_to_settings()
+            self.controller.save_and_apply()
             
             msg = QMessageBox(self)
             msg.setStyleSheet(DIALOG_STYLE)
             msg.setWindowTitle("Magic Applied")
             msg.setText("Wallpaper gradient extracted successfully!")
-            msg.setIcon(QMessageBox.Information)
-            msg.exec_()
+            msg.setIcon(QMessageBox.Icon.Information)
+            msg.exec()
             
         except ImportError:
             msg = QMessageBox(self)
             msg.setStyleSheet(DIALOG_STYLE)
             msg.setWindowTitle("Missing Dependency")
-            msg.setText("Please install Pillow to use this feature:\n\npip install Pillow")
-            msg.setIcon(QMessageBox.Warning)
-            msg.exec_()
+            msg.setText("Could not import 'wallpaper_colors' module.")
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.exec()
 
 #---------------------------------
     def build_static_page(self):
@@ -683,10 +760,7 @@ class ModernAcerRGBHub(QMainWindow):
         names = ["Zone 1 (Left)", "Zone 2 (Mid-Left)", "Zone 3 (Mid-Right)", "Zone 4 (Right)"]
         
         for i in range(4):
-            zone_key = str(i + 1)
-            color_hex = self.rgb_to_hex(self.settings["zones"].get(zone_key, [0, 180, 138]))
-            is_on = self.settings.get("zone_state", {}).get(zone_key, True)
-            zw = ZoneWidget(i, names[i], color_hex, is_on, self.select_zone, self.toggle_zone_power)
+            zw = ZoneWidget(i, names[i], self.select_zone, self.toggle_zone_power)
             self.zone_widgets[i] = zw
             zone_layout.addWidget(zw)
 
@@ -705,7 +779,7 @@ class ModernAcerRGBHub(QMainWindow):
             btn = QPushButton()
             btn.setProperty("class", "ColorSwatch")
             btn.setStyleSheet(f"background-color: {hex_code};")
-            btn.setCursor(Qt.PointingHandCursor)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda _, c=hex_code: self.apply_color_to_active_zone(c))
             swatch_layout.addWidget(btn, idx // 6, idx % 6)
 
@@ -715,13 +789,13 @@ class ModernAcerRGBHub(QMainWindow):
         action_row = QHBoxLayout()
         picker_btn = QPushButton("Custom Color Picker...")
         picker_btn.setProperty("class", "ActionButton")
-        picker_btn.setCursor(Qt.PointingHandCursor)
+        picker_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         picker_btn.clicked.connect(self.open_color_picker)
 
         magic_btn = QPushButton("✨ Sync with Wallpaper")
         magic_btn.setProperty("class", "ActionButton")
         magic_btn.setStyleSheet("color: #b4befe;") 
-        magic_btn.setCursor(Qt.PointingHandCursor)
+        magic_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         magic_btn.clicked.connect(self.apply_wallpaper_gradient)
 
         action_row.addWidget(picker_btn)
@@ -735,16 +809,16 @@ class ModernAcerRGBHub(QMainWindow):
         self.preset_combo = QComboBox()
         self.preset_combo.setView(QListView()) 
         self.preset_combo.setMinimumWidth(200)
-        self.preset_combo.activated[str].connect(self.apply_preset)
+        self.preset_combo.textActivated.connect(self.apply_preset)
         
         save_btn = QPushButton("Save Current")
         save_btn.setProperty("class", "ActionButton")
-        save_btn.setCursor(Qt.PointingHandCursor)
+        save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         save_btn.clicked.connect(self.prompt_save_preset)
         
         del_btn = QPushButton("Delete")
         del_btn.setProperty("class", "ActionButton")
-        del_btn.setCursor(Qt.PointingHandCursor)
+        del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         del_btn.setStyleSheet("color: #ff4444;")
         del_btn.clicked.connect(self.delete_preset)
         
@@ -762,12 +836,12 @@ class ModernAcerRGBHub(QMainWindow):
         bright_icon = QLabel("☀️")
         bright_icon.setStyleSheet("font-size: 14pt;")
         
-        self.bright_slider = QSlider(Qt.Horizontal)
+        self.bright_slider = QSlider(Qt.Orientation.Horizontal)
         self.bright_slider.setRange(0, 100)
-        self.bright_slider.setValue(self.settings.get("brightness", 100))
+        self.bright_slider.setValue(self.controller.settings.get("brightness", 100))
         self.bright_slider.setSingleStep(10)
         
-        bright_val = QLabel(f"{self.settings.get('brightness', 100)}%")
+        bright_val = QLabel(f"{self.controller.settings.get('brightness', 100)}%")
         bright_val.setFixedWidth(40)
         bright_val.setStyleSheet("font-weight: bold;")
 
@@ -791,13 +865,14 @@ class ModernAcerRGBHub(QMainWindow):
 
         effect_card = Card("Effect Style")
         combo_layout = QHBoxLayout()
+
         self.mode_combo = QComboBox()
         self.mode_combo.setView(QListView()) 
         self.mode_combo.setMinimumWidth(250)
-        self.mode_combo.addItems(["Wave", "Breath", "Neon", "Shifting", "Zoom"])
+        self.mode_combo.addItems(list(ANIMATION_MODES.keys()))
         
-        saved_mode_name = self.settings.get("mode_name", "Wave")
-        if saved_mode_name in ["Wave", "Breath", "Neon", "Shifting", "Zoom"]:
+        saved_mode_name = self.controller.settings.get("mode_name", "Wave")
+        if saved_mode_name in ANIMATION_MODES:
             self.mode_combo.setCurrentText(saved_mode_name)
 
         combo_layout.addWidget(self.mode_combo)
@@ -809,14 +884,14 @@ class ModernAcerRGBHub(QMainWindow):
         header_layout = QHBoxLayout()
         header_layout.addWidget(QLabel("Speed:"))
         
-        saved_speed = self.settings.get("speed", 5)
+        saved_speed = self.controller.settings.get("speed", 5)
         self.speed_val = QLabel(str(saved_speed))
         self.speed_val.setStyleSheet("color: #00b48a; font-weight: bold;")
         header_layout.addStretch()
         header_layout.addWidget(self.speed_val)
         prop_card.content_layout.addLayout(header_layout)
         
-        self.speed_slider = QSlider(Qt.Horizontal)
+        self.speed_slider = QSlider(Qt.Orientation.Horizontal)
         self.speed_slider.setRange(1, 9)
         self.speed_slider.setValue(saved_speed)
         self.speed_slider.setSingleStep(1)
@@ -834,7 +909,7 @@ class ModernAcerRGBHub(QMainWindow):
         self.dir_btn_group.addButton(self.r1, 1)
         self.dir_btn_group.addButton(self.r2, 2)
 
-        if self.settings.get("direction", 1) == 2:
+        if self.controller.settings.get("direction", 1) == 2:
             self.r2.setChecked(True)
         else:
             self.r1.setChecked(True)
@@ -850,9 +925,9 @@ class ModernAcerRGBHub(QMainWindow):
         
         self.anim_color_btn = QPushButton()
         self.anim_color_btn.setProperty("class", "ColorSwatch")
-        anim_rgb = self.settings.get("anim_color", [0, 180, 138])
-        self.anim_color_btn.setStyleSheet(f"background-color: {self.rgb_to_hex(anim_rgb)};")
-        self.anim_color_btn.setCursor(Qt.PointingHandCursor)
+        anim_rgb = self.controller.settings.get("anim_color", [0, 180, 138])
+        self.anim_color_btn.setStyleSheet(f"background-color: {rgb_to_hex(anim_rgb)};")
+        self.anim_color_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.anim_color_btn.clicked.connect(self.pick_anim_color)
         
         color_layout.addStretch()
@@ -872,18 +947,18 @@ class ModernAcerRGBHub(QMainWindow):
         self.update_direction_labels()
 
     def pick_anim_color(self):
-        curr_rgb = self.settings.get("anim_color", [0, 180, 138])
+        curr_rgb = self.controller.settings.get("anim_color", [0, 180, 138])
         color = QColorDialog.getColor(QColor(*curr_rgb), self, "Select Animation Base Color")
         if color.isValid():
             rgb = [color.red(), color.green(), color.blue()]
-            self.settings["anim_color"] = rgb
+            self.controller.set_animation_props(self.speed_slider.value(), self.dir_btn_group.checkedId(), anim_color=rgb)
             self.anim_color_btn.setStyleSheet(f"background-color: {color.name()};")
             self.apply_animation() 
 
     def update_direction_labels(self, index=None):
         mode = self.mode_combo.currentText()
 
-        if mode in ["Breath", "Neon", "Zoom"]:
+        if not ANIMATION_MODES[mode]["direction"]:
             self.r1.setEnabled(False)
             self.r2.setEnabled(False)
             self.r1.setText("Direction Not Supported")
@@ -891,18 +966,16 @@ class ModernAcerRGBHub(QMainWindow):
         else:
             self.r1.setEnabled(True)
             self.r2.setEnabled(True)
-
             self.r1.setText(f"{mode} Left to Right")
             self.r2.setText(f"{mode} Right to Left")
 
     def apply_animation(self):
-        modes = {"Breath": 1, "Neon": 2, "Wave": 3, "Shifting": 4, "Zoom": 5}
-        self.settings["mode"] = modes[self.mode_combo.currentText()]
-        self.settings["mode_name"] = self.mode_combo.currentText()
-        self.settings["speed"] = self.speed_slider.value()
-        self.settings["direction"] = self.dir_btn_group.checkedId()
-        self.save_and_apply()
-
+        mode_name = self.mode_combo.currentText()
+        mode_id = ANIMATION_MODES[mode_name]["id"]
+        
+        self.controller.set_mode(mode_id, mode_name)
+        self.controller.set_animation_props(self.speed_slider.value(), self.dir_btn_group.checkedId())
+        self.controller.save_and_apply()
 #---------------------------------
     def build_settings_page(self):
         page = QWidget()
@@ -911,7 +984,7 @@ class ModernAcerRGBHub(QMainWindow):
 
         sys_card = Card("Desktop & Startup Behavior")
         anim_toggle = QCheckBox("Enable Startup Wipe Effect")
-        anim_toggle.setChecked(self.settings.get("startup_animation", True))
+        anim_toggle.setChecked(self.controller.settings.get("startup_animation", True))
         anim_toggle.setStyleSheet("font-weight: bold;")
         anim_toggle.toggled.connect(self.toggle_startup_anim)
         
@@ -924,7 +997,7 @@ class ModernAcerRGBHub(QMainWindow):
         reset_card = Card("Configuration")
         reset_btn = QPushButton("Restore Default Settings")
         reset_btn.setProperty("class", "ActionButton")
-        reset_btn.setCursor(Qt.PointingHandCursor)
+        reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         reset_btn.setStyleSheet("color: #ff4444; border: 1px solid #ff4444;")
         reset_btn.clicked.connect(self.reset_to_default)
         
@@ -938,7 +1011,7 @@ class ModernAcerRGBHub(QMainWindow):
         diag_card = Card("Diagnostics")
         debug_btn = QPushButton("Check 'facer' Module Status")
         debug_btn.setProperty("class", "ActionButton")
-        debug_btn.setCursor(Qt.PointingHandCursor)
+        debug_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         debug_btn.clicked.connect(self.check_facer_module)
         
         diag_sub = QLabel("Verifies if /dev/acer-gkbbl-0 is mounted and accessible by your current user.")
@@ -951,85 +1024,75 @@ class ModernAcerRGBHub(QMainWindow):
         self.stacked_widget.addWidget(page)
 
     def toggle_startup_anim(self, checked):
-        self.settings["startup_animation"] = checked
-        self.save_settings()
+        self.controller.set_startup_animation(checked)
 
     def check_facer_module(self):
         path = "/dev/acer-gkbbl-0"
         msg = QMessageBox(self)
         msg.setStyleSheet(DIALOG_STYLE)
         
-        if not os.path.exists(path):
+        if not Path(path).exists():
             msg.setWindowTitle("Hardware Error")
             msg.setText(f"Module not found at {path}.\n\nEnsure 'facer-rgb' is installed and the kernel module is loaded.")
-            msg.setIcon(QMessageBox.Critical)
+            msg.setIcon(QMessageBox.Icon.Critical)
         elif not os.access(path, os.W_OK):
             msg.setWindowTitle("Permission Denied")
             msg.setText(f"Device exists but is NOT writable by your user.\n\nYou likely need to configure a udev rule for {path}, or run this script with elevated privileges.")
-            msg.setIcon(QMessageBox.Warning)
+            msg.setIcon(QMessageBox.Icon.Warning)
         else:
             msg.setWindowTitle("System Check")
             msg.setText(f"Success! {path} is loaded and writable.")
-            msg.setIcon(QMessageBox.Information)
+            msg.setIcon(QMessageBox.Icon.Information)
             
-        msg.exec_()
+        msg.exec()
 
     def reset_to_default(self):
         msg = QMessageBox(self)
         msg.setStyleSheet(DIALOG_STYLE)
         msg.setWindowTitle("Reset Configuration")
         msg.setText("Are you sure you want to reset all settings to their defaults? This will erase your custom presets.")
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg.setDefaultButton(QMessageBox.No)
-        msg.setIcon(QMessageBox.Warning)
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg.setDefaultButton(QMessageBox.StandardButton.No)
+        msg.setIcon(QMessageBox.Icon.Warning)
         
-        if msg.exec_() == QMessageBox.Yes:
-            if os.path.exists(CONFIG_FILE):
-                os.remove(CONFIG_FILE)
-            
-            self.settings = self.load_settings()
-            self.save_and_apply()
-            
-            self.bright_slider.setValue(self.settings.get("brightness", 100))
-            self.speed_slider.setValue(self.settings.get("speed", 5))
-
+        if msg.exec() == QMessageBox.StandardButton.Yes:
+            self.controller.reset_defaults()
+            self.sync_ui_to_settings()
             self.update_preset_combo()
-
-            anim_rgb = self.settings.get("anim_color", [0, 180, 138])
-            self.anim_color_btn.setStyleSheet(f"background-color: {self.rgb_to_hex(anim_rgb)};")
-
-            for i in range(4):
-                zone_key = str(i + 1)
-                rgb = self.settings["zones"].get(zone_key, [0, 180, 138])
-                is_on = self.settings.get("zone_state", {}).get(zone_key, True)
-                
-                self.zone_widgets[i].is_on = is_on
-                self.zone_widgets[i].set_color(self.rgb_to_hex(rgb))
-                self.zone_widgets[i]._update_visual_state()
-                
+            self.controller.save_and_apply()
+            
             success_msg = QMessageBox(self)
             success_msg.setStyleSheet(DIALOG_STYLE)
             success_msg.setWindowTitle("Reset Successful")
             success_msg.setText("Settings have been completely restored to factory defaults.")
-            success_msg.setIcon(QMessageBox.Information)
-            success_msg.exec_()
+            success_msg.setIcon(QMessageBox.Icon.Information)
+            success_msg.exec()
+
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    app.setApplicationName("Acer-RGB-Hub")
-    app.setDesktopFileName("Acer-RGB-Hub")
-
     is_silent = "--silent" in sys.argv
 
+    controller = AcerRGBController()
+
     if is_silent:
-        controller = ModernAcerRGBHub(build_ui=False)
-        controller.run_startup_animation()
-        sys.exit(0)
-    else:
-        app.setFont(QApplication.font())
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+        mode = controller.settings.get("mode", 0)
+        anim_enabled = controller.settings.get("startup_animation", True)
         
-        window = ModernAcerRGBHub(build_ui=True)
+        if mode == 0 and anim_enabled:
+            controller.play_startup_wipe_blocking()
+        else:
+            controller.apply_saved_settings()
+            
+        sys.exit(0)
+        
+    else:
+        app = QApplication(sys.argv)
+        app.setApplicationName("Acer-RGB-Hub")
+        app.setDesktopFileName("Acer-RGB-Hub")
+        app.setFont(QApplication.font())
+        
+        window = AcerRGBHubUI(controller)
+        window.run_startup_animation_async()
         window.show()
-        sys.exit(app.exec_())
+        
+        sys.exit(app.exec())

@@ -26,12 +26,12 @@ Before installing Acer-RGB-Hub, ensure you have the required backend tools and P
 * [`facer-rgb`](https://www.google.com/search?q=%23) (Required for underlying hardware communication)
 
 **2. Python Libraries:**
-This application requires Python 3, PyQt5 (for the GUI), and Pillow/ColorThief (for the wallpaper sync feature). Because Acer-RGB-Hub relies on system-level hooks, it is highly recommended to install the core libraries via your system package manager, and use `pip` for `colorthief`:
+This application requires Python 3, PySide6 (for the GUI), and Pillow/ColorThief (for the wallpaper sync feature). Because Acer-RGB-Hub relies on system-level hooks, it is highly recommended to install the core libraries via your system package manager, and use `pip` for `colorthief`:
 
 * **Arch Linux :**
 
 ```bash
-sudo pacman -S python-pyqt5 python-pillow
+sudo pacman -S python-pyside6 python-pillow
 pip install colorthief --break-system-packages
 
 ```
@@ -39,7 +39,7 @@ pip install colorthief --break-system-packages
 * **Debian / Ubuntu Based :**
 
 ```bash
-sudo apt install python3-pyqt5 python3-pil
+sudo apt install python3-pyside6 python3-pil
 pip3 install colorthief --break-system-packages
 
 ```
@@ -47,7 +47,7 @@ pip3 install colorthief --break-system-packages
 * **Fedora :**
 
 ```bash
-sudo dnf install python3-qt5 python3-pillow
+sudo dnf install python3-pyside6 python3-pillow
 pip install colorthief
 
 ```
@@ -129,4 +129,4 @@ sudo ./uninstall.sh
 
 ## 📄 License
 
-[MIT](https://www.google.com/search?q=https://choosealicense.com/licenses/mit/)
+[GPLv3](https://choosealicense.com/licenses/gpl-3.0/)
